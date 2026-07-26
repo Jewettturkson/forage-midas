@@ -16,11 +16,14 @@ public class DatabaseConduit {
 
     private final UserRepository userRepository;
     private final TransactionRecordRepository transactionRecordRepository;
+    private final IncentiveClient incentiveClient;
 
     public DatabaseConduit(UserRepository userRepository,
-                           TransactionRecordRepository transactionRecordRepository) {
+                           TransactionRecordRepository transactionRecordRepository,
+                           IncentiveClient incentiveClient) {
         this.userRepository = userRepository;
         this.transactionRecordRepository = transactionRecordRepository;
+        this.incentiveClient = incentiveClient;
     }
 
     public void save(UserRecord userRecord) {
@@ -30,9 +33,9 @@ public class DatabaseConduit {
     /**
      * Validates and records an incoming transaction.
      * Valid = sender exists, recipient exists, sender balance >= amount.
-     * On success both balances are adjusted and a TransactionRecord is stored;
-     * otherwise the transaction is discarded with no database changes.
-     * Transactional so a partial update can never be persisted.
+     * On success the transaction is posted to the incentive API; the incentive
+     * is added to the recipient's balance (never deducted from the sender)
+     * and stored on the TransactionRecord.
      */
     @Transactional
     public boolean processTransaction(Transaction transaction) {
@@ -44,15 +47,18 @@ public class DatabaseConduit {
             return false;
         }
 
+        // Only validated transactions earn incentives
+        float incentive = incentiveClient.fetchIncentive(transaction);
+
         sender.setBalance(sender.getBalance() - transaction.getAmount());
-        recipient.setBalance(recipient.getBalance() + transaction.getAmount());
+        recipient.setBalance(recipient.getBalance() + transaction.getAmount() + incentive);
         userRepository.save(sender);
         userRepository.save(recipient);
-        transactionRecordRepository.save(new TransactionRecord(sender, recipient, transaction.getAmount()));
+        transactionRecordRepository.save(new TransactionRecord(sender, recipient, transaction.getAmount(), incentive));
 
         // Balance logging makes test verification possible without a debugger
-        logger.info("Transaction recorded: {} | balances: {}={}, {}={}",
-                transaction, sender.getName(), sender.getBalance(),
+        logger.info("Transaction recorded: {} incentive={} | balances: {}={}, {}={}",
+                transaction, incentive, sender.getName(), sender.getBalance(),
                 recipient.getName(), recipient.getBalance());
         return true;
     }

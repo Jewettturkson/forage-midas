@@ -7,9 +7,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 
 /**
- * Persistent record of a validated transaction. Kept separate from the
- * Kafka-facing Transaction DTO so the wire format and storage model can
- * evolve independently (see task hint).
+ * Persistent record of a validated transaction, including the incentive
+ * amount returned by the incentive API at processing time.
  */
 @Entity
 public class TransactionRecord {
@@ -28,13 +27,17 @@ public class TransactionRecord {
     @Column(nullable = false)
     private float amount;
 
+    @Column(nullable = false)
+    private float incentive;
+
     protected TransactionRecord() {
     }
 
-    public TransactionRecord(UserRecord sender, UserRecord recipient, float amount) {
+    public TransactionRecord(UserRecord sender, UserRecord recipient, float amount, float incentive) {
         this.sender = sender;
         this.recipient = recipient;
         this.amount = amount;
+        this.incentive = incentive;
     }
 
     public long getId() {
@@ -53,9 +56,13 @@ public class TransactionRecord {
         return amount;
     }
 
+    public float getIncentive() {
+        return incentive;
+    }
+
     @Override
     public String toString() {
-        return String.format("TransactionRecord[id=%d, sender=%s, recipient=%s, amount=%f]",
-                id, sender.getName(), recipient.getName(), amount);
+        return String.format("TransactionRecord[id=%d, sender=%s, recipient=%s, amount=%f, incentive=%f]",
+                id, sender.getName(), recipient.getName(), amount, incentive);
     }
 }
