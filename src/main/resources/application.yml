@@ -1,9 +1,13 @@
+server:
+  # Midas Core's REST API (BalanceQuerier and TaskFiveTests expect this port)
+  port: 33400
+
 general:
   kafka-topic: trader-updates
 
 spring:
   kafka:
-    # TaskTwoTests' @EmbeddedKafka broker listens on localhost:9092
+    # Task tests' @EmbeddedKafka broker listens on localhost:9092
     bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
